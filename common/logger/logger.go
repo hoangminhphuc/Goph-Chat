@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -24,8 +25,8 @@ func NewZapLogger() *ZapLogger {
 				TimeKey:    "time",
 				LevelKey:   "level",
 				CallerKey:  "caller",
-				EncodeCaller: zapcore.FullCallerEncoder,
-				EncodeLevel:  CustomLevelEncoder,  
+				EncodeCaller: ColorCallerEncoder,
+				EncodeLevel:  zapcore.CapitalColorLevelEncoder,  
 				EncodeTime:   CustomTimeEncoder,  
 		},
 	}
@@ -42,10 +43,24 @@ func NewZapLogger() *ZapLogger {
 // Formatting Time and Level Logging
 
 func CustomTimeEncoder(t time.Time, encoder zapcore.PrimitiveArrayEncoder) {
-	encoder.AppendString(t.Format("2006-01-02 15:04:05"))
+	encoder.AppendString("[" + t.Format("15:04:05") + "]")
 }
 
-func CustomLevelEncoder(level zapcore.Level, encoder zapcore.PrimitiveArrayEncoder) {
-	encoder.AppendString("[" + level.CapitalString() + "]")
+func ColorCallerEncoder(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEncoder) {
+	const cyan = "\033[36m"
+	const reset = "\033[0m"
+	const root = "Goph-Chat/" // only keep path after this
+
+	shortPath := caller.FullPath()
+	// Shorten the caller path to root directory
+	if idx := strings.Index(shortPath, root); idx != -1 {
+		shortPath = shortPath[idx+len(root):]
+	}
+
+	enc.AppendString(cyan + shortPath + reset)
 }
+
+// func CustomLevelEncoder(level zapcore.Level, encoder zapcore.PrimitiveArrayEncoder) {
+// 	encoder.AppendString("[" + level.CapitalString() + "]")
+// }
 
