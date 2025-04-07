@@ -9,32 +9,40 @@ import (
 
 	"github.com/facebookgo/flagenv"
 	"github.com/hoangminhphuc/goph-chat/common/logger"
+	rt "github.com/hoangminhphuc/goph-chat/internal/router"
 	"github.com/joho/godotenv"
 )
 
-type ServiceHub struct {
+type serviceHub struct {
 	name     			string
-	services 		 	map[string]InitService
+	runtimeService []RuntimeService
+	initServices 	map[string]InitService
 	Plugin  			[]Plugin
+	httpServer 		*rt.HTTPServer
 	signalChan   	chan os.Signal
 	logger 	 			logger.ZapLogger
 }
 
 // No need to modify in the future so not returning pointer
 func NewServiceHub(name string, Plugin ...Plugin) ServiceHub {
-	service := ServiceHub{
-		name:     name,
-		services: map[string]InitService{},
-		Plugin:   Plugin,
-		logger: 	logger.NewZapLogger(),
+	service := &serviceHub{
+		name:     		name,
+		initServices: 		map[string]InitService{},
+		Plugin:   		Plugin,
+		signalChan:   make(chan os.Signal, 1),
+		logger: 			logger.NewZapLogger(),
 	}
 
 
 
 	// register services
 	for _, p := range Plugin {
-		p(&service)
+		p(service)
 	}
+
+	httpServer := rt.NewHTTPServer()
+	service.httpServer = httpServer
+	service.runtimeService = append(service.runtimeService, httpServer)
 
 	service.initFlags()
 	service.parseFlags()
@@ -42,17 +50,28 @@ func NewServiceHub(name string, Plugin ...Plugin) ServiceHub {
 	return service
 }
 
-func (s *ServiceHub) GetLogger() logger.ZapLogger {
+func (s *serviceHub) GetName() string {
+	return s.name
+}
+func (s *serviceHub) GetLogger() logger.ZapLogger {
 	return s.logger
 }
 
-func (s *ServiceHub) initFlags() {
-	for _, service := range s.services {
-		service.InitFlags()
+func (s *serviceHub) GetHTTPServer() *rt.HTTPServer {
+	return s.httpServer
+}
+
+func (s *serviceHub) initFlags() {
+	for _, is := range s.initServices {
+		is.InitFlags()
+	}
+
+	for _, as := range s.runtimeService {
+		as.InitFlags()
 	}
 }
 
-func (s *ServiceHub) parseFlags() {
+func (s *serviceHub) parseFlags() {
 	err := godotenv.Load(".env")
 	if err != nil {
 		s.logger.Log.Error("Error loading env file ",err)
@@ -66,17 +85,19 @@ func (s *ServiceHub) parseFlags() {
 // This function needs an instance of serviceHub, but when initialize service hub, 
 // there are no instances so this method cannot be a method of serviceHub.
 func RegisterPlugin(is InitService) Plugin {
-	return func (s *ServiceHub) {
-		if _, ok := s.services[is.Name()]; ok {
+	return func (s *serviceHub) {
+		if _, ok := s.initServices[is.Name()]; ok {
 			log.Fatal("Service " + is.Name() + " already registered")
 		}
 		
-		s.services[is.Name()] = is
+		s.initServices[is.Name()] = is
 	}
 }
 
-func (s *ServiceHub) Init() error {
-	for _, sv := range s.services {
+
+// Initialize all services, no need for listening to error
+func (s *serviceHub) Init() error {
+	for _, sv := range s.initServices {
 		if err := sv.Run(); err != nil {
 			s.logger.Log.Error("Cannot initialize service ", sv.Name(), ". ", err.Error())
 			return err
@@ -85,9 +106,15 @@ func (s *ServiceHub) Init() error {
 	return nil
 }
 
-func (s *ServiceHub) Start() error {
+func (s *serviceHub) Start() error {
+	/* 
+		Whenever the OS sends a signal (Ctrl+C or kill), 
+		the programm won't handle it (which is by default). 
+		Instead, send that signal into s.signalChan so that we can handle it
+	*/
 	signal.Notify(s.signalChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	c := s.Run()
+	s.logger.Log.Info("Starting runtime services...")
 
 	for {
 		select {
@@ -99,7 +126,7 @@ func (s *ServiceHub) Start() error {
 			}
 
 		case sig := <-s.signalChan:
-			s.logger.Log.Info(sig)
+			s.logger.Log.Info("Received signal: ", sig)
 			switch sig {
 				case syscall.SIGHUP:
 					return nil
@@ -111,40 +138,70 @@ func (s *ServiceHub) Start() error {
 	}
 }
 
-func (s *ServiceHub) Run() <-chan error {
+func (s *serviceHub) Run() <-chan error {
 	c := make(chan error, 1)
 
-	for _, sv := range s.services {
-		go func (s InitService) {
+	for _, sv := range s.runtimeService {
+		go func (s RuntimeService) {
 			c <- s.Run()
 		}(sv)
 	}
 	return c
 }
 
-func (s *ServiceHub) Stop() error {
+func (s *serviceHub) Stop() error {
 	s.logger.Log.Info("Stopping services...")
-	stopChannel := make(chan error, len(s.services))
 
-	for _, sv := range s.services {
-		go func (s InitService) {
-			stopChannel <- <-s.Stop()
-		}(sv)
+	var (
+		lenService = len(s.runtimeService)+len(s.initServices)
+		stopChannel = make(chan error, lenService)
+	)
+
+
+	// Even no error (nil) when stopping, still sends to stopChannel 
+
+	for _, is := range s.initServices {
+		go func(ins InitService) {
+			stopChannel <- <-ins.Stop()
+		}(is)
 	}
 
-	var errs []error
 
-	// Wait for all services to stop
-	for i := 0; i < len(s.services); i++ {
+	for _, as := range s.runtimeService {
+		go func(acs RuntimeService) {
+			stopChannel <- <-acs.Stop()
+		}(as)
+	}
+
+
+	for i := 0; i < lenService; i++ {
 		if err := <- stopChannel; err != nil {
 			s.logger.Log.Error("Failed to stop service: ", err)
 			return err
 		}
 	}
+	
+	s.logger.Log.Info("Service stopped successfully")
+	return nil
+}
 
-	if len(errs) == 0 {
-		s.logger.Log.Info("Service stopped successfully")
+
+func (s *serviceHub) GetService(name string) (interface{}, bool) {
+	is, ok := s.initServices[name]
+
+	if !ok {
+		return nil, ok
 	}
 
-	return nil
+	return is.Get(), true
+}
+
+func (s *serviceHub) MustGetService(name string) interface{} {
+	sv, ok := s.GetService(name)
+
+	if !ok {
+		s.logger.Log.Fatal("Service " + name + " not found")
+	}
+
+	return sv
 }

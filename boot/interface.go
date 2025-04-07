@@ -1,7 +1,9 @@
 package boot
 
-import "github.com/hoangminhphuc/goph-chat/common/logger"
-
+import (
+	"github.com/hoangminhphuc/goph-chat/common/logger"
+	rt "github.com/hoangminhphuc/goph-chat/internal/router"
+)
 
 // Plug service in and play, unplug is easy
 type Plugin func(*serviceHub)
@@ -20,7 +22,7 @@ type InitService interface {
 }
 
 // Services that run with the application runtime
-type ActiveService interface {
+type RuntimeService interface {
 	Service
 }
 
@@ -29,6 +31,7 @@ type ActiveService interface {
 type ServiceHub interface {
 	GetName() string
 	GetLogger() logger.ZapLogger
+	GetHTTPServer() *rt.HTTPServer
 	initFlags()
 	parseFlags()
 	Init() error
@@ -38,3 +41,5 @@ type ServiceHub interface {
 	GetService(name string) (interface{}, bool)
 	MustGetService(name string) interface{}
 }
+
+
