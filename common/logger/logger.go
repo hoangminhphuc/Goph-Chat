@@ -14,7 +14,7 @@ type ZapLogger struct {
 	Log *zap.SugaredLogger
 }
 
-func NewZapLogger() *ZapLogger {
+func NewZapLogger() ZapLogger {
 	cfg := zap.Config{
 		Encoding:    "console", 
 		Level:       zap.NewAtomicLevelAt(zap.InfoLevel),
@@ -36,7 +36,7 @@ func NewZapLogger() *ZapLogger {
 			log.Fatalf(fmt.Sprintf("failed to build logger: %v", err))
 	}
 
-	return &ZapLogger{
+	return ZapLogger{
 		Log: logger.Sugar(),
 	}
 }
@@ -47,7 +47,7 @@ func CustomTimeEncoder(t time.Time, encoder zapcore.PrimitiveArrayEncoder) {
 }
 
 func ColorCallerEncoder(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEncoder) {
-	const cyan = "\033[36m"
+	const cyan = "\033[35m"
 	const reset = "\033[0m"
 	const root = "Goph-Chat/" // only keep path after this
 
