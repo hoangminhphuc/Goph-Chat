@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/hoangminhphuc/goph-chat/boot"
 	"github.com/hoangminhphuc/goph-chat/common"
-	"github.com/hoangminhphuc/goph-chat/internal/router"
+	"github.com/hoangminhphuc/goph-chat/internal/router/register"
 	"github.com/hoangminhphuc/goph-chat/plugin/db"
 )
 
@@ -25,8 +24,11 @@ func Execute() {
 		logger.Log.Error(err.Error())
 	}
 
-	baseRouter := gin.Default()
-	router.InitRoutes(baseRouter, serviceHub)
-	baseRouter.Run()
 
+	register.RegisterAllRoutes(serviceHub.GetHTTPServer().GetRouter().Group("/"), serviceHub)
+
+
+	if err := serviceHub.Start(); err != nil {
+		logger.Log.Fatal(err.Error())
+	}
 }
