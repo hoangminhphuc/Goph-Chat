@@ -10,7 +10,8 @@ import (
 
 type Message struct {
 	RoomID 			int
-	ChatUser   string `json:"chatUser,omitempty"`
+	ChatUser   	string `json:"chatUser,omitempty"`
+	Body 				any
 }
 
 
@@ -20,10 +21,11 @@ type Client struct {
 	Pool   *Pool
 }
 
-func NewClient(pool *Pool, conn *websocket.Conn) *Client{
+func NewClient(userID string, pool *Pool, conn *websocket.Conn) *Client{
 	return &Client{
 		Connection: conn,
 		Pool:       pool,
+		ID:         userID,
 	}
 }
 
@@ -40,17 +42,13 @@ func (c *Client) Read(bodyChan chan []byte) {
 		}
 		var msg Message
 		err = json.Unmarshal(p, &msg)
+		msg.ChatUser = c.ID
+		log.Println(msg)
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Adds the sender's identity (email) to the message so others know who sent it.
-		message := Message {
-			RoomID: msg.RoomID,
-			ChatUser: c.ID,
-		}
 
 		// Sends the message to the Pool
-		c.Pool.Broadcast <- message
-		log.Println("info:", "Message received: ", message)
+		c.Pool.Broadcast <- msg
 	}
 }
