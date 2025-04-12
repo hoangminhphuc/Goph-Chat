@@ -2,9 +2,9 @@ package websocket
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/gorilla/websocket"
+	"github.com/hoangminhphuc/goph-chat/common/logger"
 )
 
 
@@ -16,17 +16,11 @@ type Message struct {
 
 
 type Client struct {
-	ID         string
-	Connection *websocket.Conn
-	Pool   *Pool
-}
-
-func NewClient(userID string, pool *Pool, conn *websocket.Conn) *Client{
-	return &Client{
-		Connection: conn,
-		Pool:       pool,
-		ID:         userID,
-	}
+	ID         	string
+	Connection 	*websocket.Conn
+	RoomID     	int
+	Pool   			*Pool
+	logger 			logger.ZapLogger
 }
 
 func (c *Client) Read(bodyChan chan []byte) {
@@ -35,17 +29,24 @@ func (c *Client) Read(bodyChan chan []byte) {
 		c.Connection.Close()
 	}()
 
+	defer c.Pool.ReviveWebsocket()
+
+
 	for {
 		_, p, err := c.Connection.ReadMessage()
 		if err != nil {
-			log.Fatal(err)
+			c.logger.Log.Info("Client disconnected: ", c.ID)
+			break
 		}
+
+
 		var msg Message
 		err = json.Unmarshal(p, &msg)
+		msg.RoomID = c.RoomID
 		msg.ChatUser = c.ID
-		log.Println(msg)
+
 		if err != nil {
-			log.Fatal(err)
+			c.logger.Log.Error("Invalid JSON received: ", err)
 		}
 
 		// Sends the message to the Pool
