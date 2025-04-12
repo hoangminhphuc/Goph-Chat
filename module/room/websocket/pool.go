@@ -2,29 +2,36 @@ package websocket
 
 import (
 	"log"
+	"sync"
 
 	"github.com/hoangminhphuc/goph-chat/common/logger"
 )
 
+// Each Pool is a Room
 type Pool struct {
-	Clients map[string]*Client
-	Register chan *Client
-	Unregister chan *Client
-	Broadcast chan Message
-	logger logger.ZapLogger
+	RoomID 			string
+	Clients 		map[string]*Client
+	Register 		chan *Client
+	Unregister 	chan *Client
+	Broadcast 	chan Message
+	logger 			logger.ZapLogger
+	mu 					sync.RWMutex
 }
 
-func NewPool() *Pool {
+func NewPool(roomID string) *Pool {
 	return &Pool{
-		Clients: make(map[string]*Client),
-		Register: make(chan *Client),
-		Unregister: make(chan *Client),
-		Broadcast: make(chan Message),
-		logger: logger.NewZapLogger(),
+		RoomID: 			roomID,
+		Clients: 			make(map[string]*Client),
+		Register: 		make(chan *Client),
+		Unregister: 	make(chan *Client),
+		Broadcast: 		make(chan Message),
+		logger: 			logger.NewZapLogger(),
 	}
 }
 
 func (p *Pool) handleClientRegistration(client *Client) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	oldClient, ok := p.Clients[client.ID]
 
 	if ok {
@@ -37,9 +44,9 @@ func (p *Pool) handleClientRegistration(client *Client) {
 	p.Clients[client.ID] = client
 	
 	for _, cl := range p.Clients {
-		if cl.RoomID == client.RoomID && cl.ID != client.ID {
+		if cl.ID != client.ID {
 			err := cl.Connection.WriteJSON(Message{ 
-				RoomID: client.RoomID,
+				RoomID: p.RoomID,
 				ChatUser: client.ID, 
 				Body: "New user joined."})
 			if err != nil {
@@ -50,12 +57,15 @@ func (p *Pool) handleClientRegistration(client *Client) {
 }
 
 func (p *Pool) handleClientUnregistration(client *Client) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	delete(p.Clients, client.ID)	
 	p.logger.Log.Info("Client left. Size of connection pool: ", len(p.Clients))
 	
 	for _, cl := range p.Clients {
-		if cl.RoomID == client.RoomID && cl.ID != client.ID {
-			err := cl.Connection.WriteJSON(Message{RoomID: client.RoomID, ChatUser: client.ID, Body: "User left."})
+		if cl.ID != client.ID {
+			err := cl.Connection.WriteJSON(Message{RoomID: p.RoomID, ChatUser: client.ID, Body: "User left."})
 			if err != nil {
 				p.logger.Log.Error("Cannot write to client: ", client.ID)
 			}
@@ -65,9 +75,12 @@ func (p *Pool) handleClientUnregistration(client *Client) {
 }
 
 func (p *Pool) broadcastMessage(msg Message) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	
 	p.logger.Log.Info("Broadcasting message to clients.")
 			for _,cl := range p.Clients {
-				if cl.RoomID == msg.RoomID && cl.ID != msg.ChatUser {
+				if cl.ID != msg.ChatUser {
 					err := cl.Connection.WriteJSON(msg.Body)
 					if err != nil {
 						p.logger.Log.Error("Cannot write to client: ", cl.ID)

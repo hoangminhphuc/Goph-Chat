@@ -9,7 +9,7 @@ import (
 
 
 type Message struct {
-	RoomID 			int
+	RoomID 			string
 	ChatUser   	string `json:"chatUser,omitempty"`
 	Body 				any
 }
@@ -18,8 +18,7 @@ type Message struct {
 type Client struct {
 	ID         	string
 	Connection 	*websocket.Conn
-	RoomID     	int
-	Pool   			*Pool
+	Pool 				*Pool
 	logger 			logger.ZapLogger
 }
 
@@ -41,13 +40,15 @@ func (c *Client) Read(bodyChan chan []byte) {
 
 
 		var msg Message
-		err = json.Unmarshal(p, &msg)
-		msg.RoomID = c.RoomID
+		if err = json.Unmarshal(p, &msg); err != nil {
+			c.logger.Log.Error("Invalid JSON received: ", err)
+			return
+		}
+
+		msg.RoomID = c.Pool.RoomID
 		msg.ChatUser = c.ID
 
-		if err != nil {
-			c.logger.Log.Error("Invalid JSON received: ", err)
-		}
+		
 
 		// Sends the message to the Pool
 		c.Pool.Broadcast <- msg

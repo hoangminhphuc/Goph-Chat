@@ -16,7 +16,7 @@ var upgrader = websocket.Upgrader {
 }
 
 
-func ServerWebSocket(c *gin.Context, pool *Pool) {
+func ServerWebSocket(c *gin.Context, roomCenter *RoomCenter) {
 	roomID, err := strconv.Atoi(c.Param("id"))
 
 	if err != nil {
@@ -30,21 +30,24 @@ func ServerWebSocket(c *gin.Context, pool *Pool) {
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		
-		if err != nil {
-			return 
-		}
-		client := &Client {
-			ID: fmt.Sprintf("%d", time.Now().Unix()),
-			Connection: conn,
-			RoomID: roomID,
-			Pool: pool,
-			logger: logger.NewZapLogger(),
-		}
-		pool.Register <- client
+	if err != nil {
+		return 
+	}
+	
+	room := roomCenter.GetRoom(fmt.Sprintf("%d", roomID))
+	
+	client := &Client {
+		ID: fmt.Sprintf("%d", time.Now().Unix()),
+		Connection: conn,
+		Pool: room,
+		logger: logger.NewZapLogger(),
+	}
+	
+	room.Register <- client
 
-		requestBody := make(chan []byte) // websocket.Message byte array channel
+	requestBody := make(chan []byte) 
 
-		go client.Read(requestBody)
+	go client.Read(requestBody)
 
 
 }
