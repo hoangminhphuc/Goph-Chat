@@ -16,8 +16,11 @@ var upgrader = websocket.Upgrader {
 func RegisterWebSocketRoute(v1 *gin.RouterGroup, serviceCtx serviceHub.ServiceHub) {
 	pool := ws.NewPool()
 	go pool.Start()
-	v1.GET("/ws", func(c *gin.Context) {
+	chat := v1.Group("/ws")
+
+	chat.GET("/:id", func(c *gin.Context) {
 		ws.ServerWebSocket(c, pool)
+
 
 		// go func() {
 		// 	defer func() {
