@@ -10,7 +10,7 @@ import (
 func RegisterAllRoutes(router *gin.RouterGroup, serviceCtx serviceHub.ServiceHub) {
 	v1 := router.Group("/v1")
 
-	userRoutes.RegisterUserRoute(v1.Group("/users"), serviceCtx)
+	userRoutes.RegisterUserRoute(v1, serviceCtx)
 	roomWebSocketRoutes.RegisterWebSocketRoute(v1.Group("/rooms"), serviceCtx)
 }
 
