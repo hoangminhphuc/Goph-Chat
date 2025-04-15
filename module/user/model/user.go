@@ -1,6 +1,12 @@
 package model
 
-import "github.com/hoangminhphuc/goph-chat/common/models"
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/hoangminhphuc/goph-chat/common"
+	"github.com/hoangminhphuc/goph-chat/common/models"
+)
 
 type UserRole int
 
@@ -15,6 +21,27 @@ func (r UserRole) String() string {
 	return [...]string{"user", "admin"}[r]
 }
 
+// Implements Scanner interface for GORM to use
+func (role *UserRole) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+			return common.NewError(fmt.Sprintf("Failed to map value: %v", value),
+				http.StatusInternalServerError)
+		}
+
+	var r UserRole
+	roleValue := string(bytes)
+
+	if roleValue == "user" {
+			r = RoleUser
+	} else if roleValue == "admin" {
+			r = RoleAdmin
+	}
+
+	*role = r
+	return nil
+}
+
 type User struct {
 	models.BaseModel
 	Email    		string   	`json:"email" gorm:"column:email;"`
@@ -26,3 +53,5 @@ type User struct {
 	Role 				UserRole 	`json:"role" gorm:"column:role;"`
 	Status  		string   	`json:"status" gorm:"column:status;"`
 }
+
+func (User) TableName() string { return "users" }
