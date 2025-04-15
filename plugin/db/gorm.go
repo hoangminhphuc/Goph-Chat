@@ -110,7 +110,7 @@ func (gdb *GormDB) Get() interface{} {
 			db.SetConnMaxIdleTime(time.Hour)
 	}
 
-	return gdb.db
+	return gdb.db.Debug()
 }
 
 func (gdb *GormDB) Stop() <-chan error {
