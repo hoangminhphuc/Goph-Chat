@@ -205,3 +205,12 @@ func (s *serviceHub) MustGetService(name string) interface{} {
 
 	return sv
 }
+
+func (s *serviceHub) GetEnvValue(key string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		s.logger.Log.Error("Environment variable not found: ", key)
+		return ""
+	}
+	return value
+}

@@ -40,6 +40,7 @@ type ServiceHub interface {
 	Stop() error
 	GetService(name string) (interface{}, bool)
 	MustGetService(name string) interface{}
+	GetEnvValue(key string) string
 }
 
 
