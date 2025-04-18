@@ -28,6 +28,11 @@ func GenerateSalt(length int) (string, error) {
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(saltBytes), nil
 }
 
+type Hasher interface {
+	Hash(plainPassword string) string 
+	Compare(hashedValue, plainText string) bool
+}
+
 type BcryptHash struct{}
 
 func NewBcryptHash() *BcryptHash {

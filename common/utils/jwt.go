@@ -9,6 +9,12 @@ import (
 	"github.com/hoangminhphuc/goph-chat/common"
 )
 
+const (
+	// should be expired in 7 days, in this case we set it to 30 days 
+	AccessTokenExpiredTime  = 30 * 24 * 3600
+	RefreshTokenExpiredTime = 30 * 24 * 3600
+)
+
 type TokenPayLoad interface {
 	UserId() int
 	Role() string
