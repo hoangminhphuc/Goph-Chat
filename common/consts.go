@@ -3,7 +3,6 @@ package common
 /* 
 	! Plugin prefix name consts
 */
-
 const (
 	PluginDBMain = "mysql"
 )
@@ -11,7 +10,6 @@ const (
 /* 
 	! Security consts
 */
-
 const (
 	// 32 bytes
 	DefaultSaltLength = 32
@@ -19,4 +17,11 @@ const (
 	MaxSaltLength = 1024
 
 	BCRYPT_COST = 12
+)
+
+/* 
+	! Current user consts
+*/
+const (
+	CurrentUser = "current_user"
 )
