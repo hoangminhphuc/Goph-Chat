@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,13 +21,46 @@ type APIError struct {
 	Details interface{} `json:"details,omitempty"`
 }
 
-func SuccessResponse(c *gin.Context, message string, data interface{}) {
-	c.JSON(http.StatusOK, APIResponse{
+func BuildResponseData(data ...interface{}) (map[string]interface{}, error) {
+	if data[0] == nil {
+		return nil, nil 
+	}
+
+
+	responseData := make(map[string]interface{})
+
+	for i := 0; i < len(data); i += 2 {
+		key := data[i]
+		value := data[i+1]
+
+		// Ensure that the key is a string
+		if keyStr, ok := key.(string); ok {
+			responseData[keyStr] = value
+		}  else {
+			return nil, fmt.Errorf("invalid key type at position %d: expected string, got %T", i, key)
+		}
+	}
+
+	return responseData, nil
+}
+
+func SuccessResponse(c *gin.Context, message string, data ...interface{}) {
+	responseData, err := BuildResponseData(data...)
+	if err != nil {
+		ErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+
+	apiResponse := APIResponse{
 		Code:   http.StatusOK,
 		Status: "success",
 		Message: message,
-		Data:   data,
-	})
+	}
+
+	if responseData != nil {
+		apiResponse.Data = responseData
+	}
+
+	c.JSON(http.StatusOK, apiResponse)
 }
 
 func ErrorResponse(c *gin.Context, statusCode int, message string, errs ...APIError) {
