@@ -24,7 +24,7 @@ func Execute() {
 		logger.Log.Error(err.Error())
 	}
 
-
+	serviceHub.InitializePools(serviceHub.GetWSServer())
 	register.RegisterAllRoutes(serviceHub.GetHTTPServer().GetRouter().Group("/"), serviceHub)
 
 

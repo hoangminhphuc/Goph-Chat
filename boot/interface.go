@@ -3,6 +3,7 @@ package boot
 import (
 	"github.com/hoangminhphuc/goph-chat/common/logger"
 	rt "github.com/hoangminhphuc/goph-chat/internal/router"
+	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 )
 
 // Plug service in and play, unplug is easy
@@ -32,6 +33,8 @@ type ServiceHub interface {
 	GetName() string
 	GetLogger() logger.ZapLogger
 	GetHTTPServer() *rt.HTTPServer
+	GetWSServer() *websocket.WebSocketServer
+	InitializePools(ws *websocket.WebSocketServer)
 	initFlags()
 	parseFlags()
 	Init() error

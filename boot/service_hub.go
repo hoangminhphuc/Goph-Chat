@@ -8,9 +8,13 @@ import (
 	"syscall"
 
 	"github.com/facebookgo/flagenv"
+	"github.com/hoangminhphuc/goph-chat/common"
 	"github.com/hoangminhphuc/goph-chat/common/logger"
 	rt "github.com/hoangminhphuc/goph-chat/internal/router"
+	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
+	"github.com/hoangminhphuc/goph-chat/module/room/model"
 	"github.com/joho/godotenv"
+	"gorm.io/gorm"
 )
 
 type serviceHub struct {
@@ -44,6 +48,9 @@ func NewServiceHub(name string, Plugin ...Plugin) ServiceHub {
 	service.httpServer = httpServer
 	service.runtimeService = append(service.runtimeService, httpServer)
 
+	ws := websocket.NewWebSocketServer()
+	service.runtimeService = append(service.runtimeService, ws)
+
 	service.initFlags()
 	service.parseFlags()
 
@@ -59,6 +66,31 @@ func (s *serviceHub) GetLogger() logger.ZapLogger {
 
 func (s *serviceHub) GetHTTPServer() *rt.HTTPServer {
 	return s.httpServer
+}
+
+func (s *serviceHub) GetWSServer() *websocket.WebSocketServer {
+	for _, as := range s.runtimeService {
+		if as.Name() == "websocket" {
+			return as.(*websocket.WebSocketServer)
+		}
+	}
+
+	return nil
+}
+
+// ! Will be refactoring later on
+func (s *serviceHub) InitializePools(ws *websocket.WebSocketServer) {
+	db := s.MustGetService(common.PluginDBMain).(*gorm.DB)
+
+	var rooms []model.Room
+	if err := db.Find(&rooms).Error; err != nil {
+			s.logger.Log.Error(err.Error())
+	}
+
+	for _, r := range rooms {
+			pool := websocket.NewPool(r.ID)
+			ws.Rooms[r.ID] = pool
+	}
 }
 
 func (s *serviceHub) initFlags() {
