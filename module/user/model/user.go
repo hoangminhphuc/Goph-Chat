@@ -55,3 +55,10 @@ type User struct {
 }
 
 func (User) TableName() string { return "users" }
+
+var (
+	ErrEmailOrPasswordInvalid = common.NewError(
+			"email or password invalid",
+			http.StatusBadRequest,
+	)
+)
