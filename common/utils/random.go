@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"log"
 
@@ -27,6 +28,27 @@ func GenerateSalt(length int) (string, error) {
 	// Encode using URL-safe base64 without padding
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(saltBytes), nil
 }
+
+func GenerateFixedSalt(seed string, length int) (string, error) {
+	if length <= 0 {
+		length = common.DefaultSaltLength
+	} else if length > common.MaxSaltLength {
+		length = common.MaxSaltLength
+	}
+
+	hash := sha256.Sum256([]byte(seed))
+	salt := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
+
+	if len(salt) > length {
+		salt = salt[:length]
+	} else if len(salt) < length {
+		padding := make([]byte, length-len(salt))
+		salt += base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(padding)[:length-len(salt)]
+	}
+
+	return salt, nil
+}
+
 
 type Hasher interface {
 	Hash(plainPassword string) string 
