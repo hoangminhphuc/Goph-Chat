@@ -3,14 +3,16 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	serviceHub "github.com/hoangminhphuc/goph-chat/boot"
-	ws "github.com/hoangminhphuc/goph-chat/module/room/websocket"
+	"github.com/hoangminhphuc/goph-chat/module/room/transport/rest"
+	ws "github.com/hoangminhphuc/goph-chat/module/room/transport/websocket"
 )
 
-func RegisterWebSocketRoute(v1 *gin.RouterGroup, serviceCtx serviceHub.ServiceHub) {
-	roomManager := ws.GetRoomCenter()
-	chat := v1.Group("/ws")
+func RegisterWebSocketRoute(rooms *gin.RouterGroup, serviceCtx serviceHub.ServiceHub) {
+	rooms.POST("", rest.CreateRoom(serviceCtx))
+	rooms.GET("/:id", rest.GetRoomByID(serviceCtx))
 
-	chat.GET("/:id", func(c *gin.Context) {
-		ws.ServerWebSocket(c, roomManager)
-	})
+	chat := rooms.Group("/ws")
+	{
+		chat.GET("/:id", ws.HandleWebSocketConnection(serviceCtx))
+	}
 }
