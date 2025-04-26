@@ -5,12 +5,16 @@ import (
 	"github.com/hoangminhphuc/goph-chat/common"
 	"github.com/hoangminhphuc/goph-chat/internal/router/register"
 	"github.com/hoangminhphuc/goph-chat/plugin/db"
+	rt "github.com/hoangminhphuc/goph-chat/internal/router"
+	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 )
 
 func newService() boot.ServiceHub {
 	service := boot.NewServiceHub(
 		"Goph-Chat",
-		boot.RegisterPlugin(db.NewGormDB(common.PluginDBMain)),
+		boot.RegisterInitService(db.NewGormDB(common.PluginDBMain)),
+		boot.RegisterRuntimeService(rt.NewHTTPServer()),
+    boot.RegisterRuntimeService(websocket.NewWebSocketServer()),
 	)
 	return service
 }
@@ -24,8 +28,8 @@ func Execute() {
 		logger.Log.Error(err.Error())
 	}
 
-	serviceHub.InitializePools(serviceHub.GetWSServer())
-	register.RegisterAllRoutes(serviceHub.GetHTTPServer().GetRouter().Group("/"), serviceHub)
+	serviceHub.InitializePools(serviceHub.MustGetRuntimeService(common.PluginWSMain).(*websocket.WebSocketServer))
+	register.RegisterAllRoutes(serviceHub.MustGetRuntimeService(common.PluginHTTPMain).(*rt.HTTPServer).GetRouter().Group("/"), serviceHub)
 
 
 	if err := serviceHub.Start(); err != nil {

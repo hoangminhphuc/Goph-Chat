@@ -37,19 +37,10 @@ func NewServiceHub(name string, Plugin ...Plugin) ServiceHub {
 		logger: 			logger.NewZapLogger(),
 	}
 
-
-
 	// register services
 	for _, p := range Plugin {
 		p(service)
 	}
-
-	httpServer := rt.NewHTTPServer()
-	service.httpServer = httpServer
-	service.runtimeService = append(service.runtimeService, httpServer)
-
-	ws := websocket.NewWebSocketServer()
-	service.runtimeService = append(service.runtimeService, ws)
 
 	service.initFlags()
 	service.parseFlags()
@@ -62,20 +53,6 @@ func (s *serviceHub) GetName() string {
 }
 func (s *serviceHub) GetLogger() logger.ZapLogger {
 	return s.logger
-}
-
-func (s *serviceHub) GetHTTPServer() *rt.HTTPServer {
-	return s.httpServer
-}
-
-func (s *serviceHub) GetWSServer() *websocket.WebSocketServer {
-	for _, as := range s.runtimeService {
-		if as.Name() == "websocket" {
-			return as.(*websocket.WebSocketServer)
-		}
-	}
-
-	return nil
 }
 
 // ! Will be refactoring later on
@@ -116,13 +93,20 @@ func (s *serviceHub) parseFlags() {
 
 // This function needs an instance of serviceHub, but when initialize service hub, 
 // there are no instances so this method cannot be a method of serviceHub.
-func RegisterPlugin(is InitService) Plugin {
+func RegisterInitService(is InitService) Plugin {
 	return func (s *serviceHub) {
 		if _, ok := s.initServices[is.Name()]; ok {
 			log.Fatal("Service " + is.Name() + " already registered")
 		}
 		
 		s.initServices[is.Name()] = is
+	}
+}
+
+// Register runtimeService
+func RegisterRuntimeService(rs RuntimeService) Plugin {
+	return func(s *serviceHub) {
+			s.runtimeService = append(s.runtimeService, rs)
 	}
 }
 
@@ -236,6 +220,23 @@ func (s *serviceHub) MustGetService(name string) interface{} {
 	}
 
 	return sv
+}
+
+func (s *serviceHub) GetRuntimeService(name string) (interface{}, bool) {
+	for _, rs := range s.runtimeService {
+			if rs.Name() == name {
+					return rs, true
+			}
+	}
+	return nil, false
+}
+
+func (s *serviceHub) MustGetRuntimeService(name string) interface{} {
+	rs, ok := s.GetRuntimeService(name)
+	if !ok {
+			s.logger.Log.Fatal("Runtime service not found: ", name)
+	}
+	return rs
 }
 
 func (s *serviceHub) GetEnvValue(key string) string {

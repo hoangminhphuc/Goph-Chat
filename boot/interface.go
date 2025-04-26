@@ -2,7 +2,6 @@ package boot
 
 import (
 	"github.com/hoangminhphuc/goph-chat/common/logger"
-	rt "github.com/hoangminhphuc/goph-chat/internal/router"
 	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 )
 
@@ -32,8 +31,6 @@ type RuntimeService interface {
 type ServiceHub interface {
 	GetName() string
 	GetLogger() logger.ZapLogger
-	GetHTTPServer() *rt.HTTPServer
-	GetWSServer() *websocket.WebSocketServer
 	InitializePools(ws *websocket.WebSocketServer)
 	initFlags()
 	parseFlags()
@@ -42,7 +39,9 @@ type ServiceHub interface {
 	Run() <-chan error
 	Stop() error
 	GetService(name string) (interface{}, bool)
+	GetRuntimeService(name string) (interface{}, bool)
 	MustGetService(name string) interface{}
+	MustGetRuntimeService(name string) interface{}
 	GetEnvValue(key string) string
 }
 
