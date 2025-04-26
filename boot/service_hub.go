@@ -10,7 +10,6 @@ import (
 	"github.com/facebookgo/flagenv"
 	"github.com/hoangminhphuc/goph-chat/common"
 	"github.com/hoangminhphuc/goph-chat/common/logger"
-	rt "github.com/hoangminhphuc/goph-chat/internal/router"
 	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 	"github.com/hoangminhphuc/goph-chat/module/room/model"
 	"github.com/joho/godotenv"
@@ -22,7 +21,6 @@ type serviceHub struct {
 	runtimeService []RuntimeService
 	initServices 	map[string]InitService
 	Plugin  			[]Plugin
-	httpServer 		*rt.HTTPServer
 	signalChan   	chan os.Signal
 	logger 	 			logger.ZapLogger
 }
