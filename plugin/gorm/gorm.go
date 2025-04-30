@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hoangminhphuc/goph-chat/common/logger"
-	"github.com/hoangminhphuc/goph-chat/plugin/db/gormdiaclects"
+	"github.com/hoangminhphuc/goph-chat/plugin/gorm/gormdiaclects"
 	"gorm.io/gorm"
 )
 
