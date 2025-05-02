@@ -1,4 +1,4 @@
-package service
+package redis
 
 
 import (
@@ -70,7 +70,7 @@ func (r *RedisService) InitFlags() {
       prefix += "-"
   }
     flag.StringVar(&r.addr, prefix+"addr",
-        "redis://localhost:6379", "Redis address (host:port)")
+        "localhost:6379", "Redis address (host:port)")
 
     flag.IntVar(&r.db, prefix+"db",
         defaultRedisDB, "Redis DB number")
@@ -123,21 +123,22 @@ func (r *RedisService) Run() error {
     return nil
 }
 
+func (r *RedisService) Stop() <-chan error {
+  ch := make(chan error, 1)
 
-// Stop closes the client and signals when done
-func (r *RedisService) Stop() <-chan bool {
-	// stops Redis connection
-	if r.client != nil {
-			if err := r.client.Close(); err != nil {
-					r.logger.Log.Info("cannot close ", r.name, " error:", err)
-			}
-	}
+  go func() {
+    var err error
+    if r.client != nil {
+        if cerr := r.client.Close(); cerr != nil {
+            r.logger.Log.Info("cannot close ", r.name, " error:", cerr)
+            err = cerr
+        }
+    }
+    ch <- err
+    close(ch)
+  }()
 
-	c := make(chan bool, 1)
-	go func() { 
-			c <- true 
-	}()
-	return c
+	return ch
 }
 
 
