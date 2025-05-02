@@ -5,6 +5,9 @@ package common
 */
 const (
 	PluginDBMain = "mysql"
+	PluginWSMain = "websocket"
+	PluginHTTPMain = "gin"
+	PluginRedisMain = "redis"
 )
 
 /* 
