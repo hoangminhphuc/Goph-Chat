@@ -10,6 +10,8 @@ import (
 func RegisterWebSocketRoute(rooms *gin.RouterGroup, serviceCtx serviceHub.ServiceHub) {
 	rooms.POST("", rest.CreateRoom(serviceCtx))
 	rooms.GET("/:id", rest.GetRoomByID(serviceCtx))
+	rooms.GET("", rest.ListRoom(serviceCtx))
+	rooms.DELETE("/:id", rest.DeleteRoomByID(serviceCtx))
 
 	chat := rooms.Group("/ws")
 	{
