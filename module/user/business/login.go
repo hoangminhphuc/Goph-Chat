@@ -2,6 +2,8 @@ package business
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/hoangminhphuc/goph-chat/common"
 	"github.com/hoangminhphuc/goph-chat/common/utils"
@@ -30,6 +32,8 @@ func NewLoginBusiness (repo LoginRepo, hasher utils.Hasher, expiry int, secret s
 }
 
 func (lb *loginBusiness) Login(ctx context.Context, data *dto.UserLogin) (string, error) {
+	start := time.Now()
+	
 	user, _ := lb.repo.FindUser(ctx, map[string]interface{}{"email": data.Email})
 
 	if user == nil {
@@ -50,6 +54,9 @@ func (lb *loginBusiness) Login(ctx context.Context, data *dto.UserLogin) (string
 	if err != nil {
 		return "", common.ErrInvalidRequest(err)
 	}
+
+	elapsed := time.Since(start)
+	fmt.Printf("Login took %s\n", elapsed)
 
 	return token, nil
 
