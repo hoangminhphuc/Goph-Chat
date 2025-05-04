@@ -1,6 +1,8 @@
 package common
 
-/* 
+import "time"
+
+/*
 	! Plugin prefix name consts
 */
 const (
@@ -27,4 +29,20 @@ const (
 */
 const (
 	CurrentUser = "current_user"
+)
+
+/* 
+	! TTL consts
+*/
+
+const (
+	// Session consts 
+	SessionTTL = 2 * time.Hour
+
+	// User
+	UserProfileTTL = 4 * time.Hour
+
+	// Room 
+	RoomMetadataTTL = 30 * time.Minute
+	RoomListPageTTL = 10 * time.Minute
 )
