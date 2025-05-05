@@ -1,0 +1,12 @@
+.env
+
+build-service.sh
+*.exe
+*.out
+*.o
+
+.vscode/
+.idea/
+
+.dockerignore
+
