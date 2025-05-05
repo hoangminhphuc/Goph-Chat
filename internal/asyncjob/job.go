@@ -27,7 +27,6 @@ type job struct {
 	title 	string
 	state 	JobState
 	handler JobHandler
-	stopChan chan bool
 }
 
 func NewJob(title string, handler JobHandler) *job {
@@ -35,20 +34,27 @@ func NewJob(title string, handler JobHandler) *job {
 		title: title,
 		state: StateInit,
 		handler: handler,
-		stopChan: make(chan bool),
 	}
 }
 
 func (j *job) Execute(ctx context.Context) error {
 	j.state = StateRunning
+	errChan := make(chan error, 1)
 
-	err := j.handler(ctx)
+	go func() {
+		errChan <- j.handler(ctx)
+	}()
 
-	if err != nil {
-		j.state = StateFailed
-		return err
+	select {
+	case <-ctx.Done(): // context’s Done channel closes first
+		j.state = StateTimeout
+		return ctx.Err()
+	case err := <-errChan: // handler finishes first
+		if err != nil {
+			j.state = StateFailed
+			return err
+		}
+		j.state = StateSuccess
+		return nil
 	}
-
-	j.state = StateSuccess
-	return nil
 }
