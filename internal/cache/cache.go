@@ -2,11 +2,13 @@ package cache
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"time"
 
+	"github.com/go-redis/cache/v9"
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/redis/go-redis/v9"
-	"github.com/go-redis/cache/v9"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -83,40 +85,47 @@ func (c *TwoLevelCache) Set(ctx context.Context, key string, value interface{}, 
 
 // Get attempts local cache, then remote with singleflight to prevent stampede.
 func (c *TwoLevelCache) Get(ctx context.Context, key string, dest interface{}) error {
-	
-	// 1) try local cache (Level 1)
+	// Local LRU lookup
 	if v, ok := c.local.Get(key); ok {
-		switch d := dest.(type) {
-		case *string: // dest is a string pointer (&myString)
-			if str, ok := v.(string); ok {
-				*d = str
-				return nil
+			switch d := dest.(type) {
+			case *string:
+					if str, ok := v.(string); ok {
+							*d = str
+							return nil
+					}
+			default:
+					// dest is pointer to struct or value type
+					rv := reflect.ValueOf(dest)
+					vp := reflect.ValueOf(v)
+					if rv.Kind() == reflect.Ptr && vp.Kind() == reflect.Ptr {
+							rv.Elem().Set(vp.Elem())
+							return nil
+					}
 			}
-		default:
-			ptr := dest.(*interface{}) // ptr now holds a pointer to real value.
-			*ptr = v 
-			return nil
-		}
 	}
 
 	// Load from Redis (Level 2) or fallback to DB
 	val, err, _ := c.loader.Do(key, func() (interface{}, error) {
-	// If multiple goroutines fetch the same key, only 1 is needed to load the data, 
-	// other waits and get the final result.
-		var err error
-		if err = c.remote.Get(ctx, key, dest); err == nil {
-			c.local.Add(key, dest)
-			return dest, nil
-		}
-		return nil, err 
+			var err error
+			if err := c.remote.Get(ctx, key, dest); err == nil {
+					c.local.Add(key, dest)
+					return dest, nil
+			}
+			return nil, err
 	})
 
 	if err != nil {
-		return err
+			return err
 	}
-	
-	*dest.(*interface{}) = val
-	return nil
+
+	// Assign result into dest
+	rv := reflect.ValueOf(dest)
+	vp := reflect.ValueOf(val)
+	if rv.Kind() == reflect.Ptr && vp.Kind() == reflect.Ptr {
+			rv.Elem().Set(vp.Elem())
+			return nil
+	}
+	return fmt.Errorf("cache error")
 }
 
 // Delete removes from both caches.
