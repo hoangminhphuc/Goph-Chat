@@ -10,7 +10,7 @@ import (
 
 type BaseModel struct {
 	ID        int        `json:"-" gorm:"column:id;"`
-	FakeID  	string  	`json:"id" gorm:"column:-;"`
+	FakeID  	string  	`json:"id" gorm:"-"`
 	CreatedAt *time.Time `json:"created_at" gorm:"column:created_at;"`
 	UpdatedAt *time.Time `json:"updated_at" gorm:"column:updated_at;"`
 }
