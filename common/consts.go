@@ -7,6 +7,7 @@ import "time"
 */
 const (
 	PluginDBMain = "mysql"
+	PluginPubSubMain = "pubsub"
 	PluginWSMain = "websocket"
 	PluginHTTPMain = "gin"
 	PluginRedisMain = "redis"
