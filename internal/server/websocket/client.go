@@ -1,11 +1,14 @@
 package websocket
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/hoangminhphuc/goph-chat/common"
 	"github.com/hoangminhphuc/goph-chat/common/logger"
 	"github.com/hoangminhphuc/goph-chat/common/models"
+	"github.com/hoangminhphuc/goph-chat/plugin/pubsub"
 )
 
 
@@ -62,6 +65,9 @@ func (c *Client) Read(ctx *gin.Context, bodyChan chan []byte) {
 		msg.ChatUser = currentUser.GetUserId()
 
 		// Sends the message to the Pool
-		c.Pool.Broadcast <- msg
+		c.Pool.pubsub.Publish(pubsub.NewMessage(
+			pubsub.Topic(fmt.Sprintf("room-%d", c.Pool.RoomID)),
+			msg,
+		))
 	}
 }

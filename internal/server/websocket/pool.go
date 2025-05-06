@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/hoangminhphuc/goph-chat/common/logger"
+	"github.com/hoangminhphuc/goph-chat/plugin/pubsub"
 )
 
 // Each Pool is a Room
@@ -13,20 +14,26 @@ type Pool struct {
 	Clients 		map[int]*Client
 	Register 		chan *Client
 	Unregister 	chan *Client
-	Broadcast 	chan Message
+	// Broadcast 	chan Message
 	done 				chan struct{}
+	pubsub    	*pubsub.LocalPubSub
+	subCh     	<-chan *pubsub.Message
+	unsub     	func()
 	logger 			logger.ZapLogger
 	mu 					sync.RWMutex
 }
 
-func NewPool(roomID int) *Pool {
+func NewPool(roomID int, ps *pubsub.LocalPubSub) *Pool {
+	ch, unsub := ps.Subscribe(pubsub.Topic(fmt.Sprintf("room-%d", roomID)))
 	return &Pool{
 		RoomID: 			roomID,
 		Clients: 			make(map[int]*Client),
 		Register: 		make(chan *Client, 10),
 		Unregister: 	make(chan *Client, 10),
-		Broadcast: 		make(chan Message, 50),
 		done:       make(chan struct{}),
+		pubsub:     ps,
+		subCh:      ch,
+		unsub:      unsub,
 		logger: 			logger.NewZapLogger(),
 	}
 }
@@ -124,8 +131,11 @@ func (p *Pool) Start() {
 			p.handleClientRegistration(client)
 		case client := <- p.Unregister:
 			p.handleClientUnregistration(client)
-		case msg := <- p.Broadcast:
-			p.broadcastMessage(msg)
+		case msg, ok := <-p.subCh:
+			if !ok {
+				return
+			}
+			p.broadcastMessage(msg.GetData().(Message))
 		case <-p.done:
 			// graceful shutdown
 			return

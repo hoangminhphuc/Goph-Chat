@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/hoangminhphuc/goph-chat/common"
+	"github.com/hoangminhphuc/goph-chat/plugin/pubsub"
 )
 
 type WebSocketServer struct {
@@ -61,12 +62,12 @@ func (s *WebSocketServer) GetRoom(roomID int) (*Pool, error) {
 	return pool, nil
 }
 
-func (s *WebSocketServer) CreateRoom(roomID int) error {
+func (s *WebSocketServer) CreateRoom(roomID int, ps *pubsub.LocalPubSub) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, exists := s.Rooms[roomID]; !exists {
-		pool := NewPool(roomID)
+		pool := NewPool(roomID, ps)
 		s.Rooms[roomID] = pool
 	} else {
 		return common.NewError("room already exists", http.StatusBadRequest)
