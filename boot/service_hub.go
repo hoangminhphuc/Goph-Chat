@@ -12,6 +12,7 @@ import (
 	"github.com/hoangminhphuc/goph-chat/common/logger"
 	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 	"github.com/hoangminhphuc/goph-chat/module/room/model"
+	"github.com/hoangminhphuc/goph-chat/plugin/pubsub"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
@@ -56,6 +57,7 @@ func (s *serviceHub) GetLogger() logger.ZapLogger {
 // ! Will be refactoring later on
 func (s *serviceHub) InitializePools(ws *websocket.WebSocketServer) {
 	db := s.MustGetService(common.PluginDBMain).(*gorm.DB)
+	pubsub := s.MustGetService(common.PluginPubSubMain).(*pubsub.LocalPubSub)
 
 	var rooms []model.Room
 	if err := db.Find(&rooms).Error; err != nil {
@@ -63,7 +65,7 @@ func (s *serviceHub) InitializePools(ws *websocket.WebSocketServer) {
 	}
 
 	for _, r := range rooms {
-			pool := websocket.NewPool(r.ID)
+			pool := websocket.NewPool(r.ID, pubsub)
 			ws.Rooms[r.ID] = pool
 	}
 }
