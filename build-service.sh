@@ -18,6 +18,7 @@ MYSQL_IMAGE="mysql:8"                            # MySQL Docker image
 REDIS_IMAGE="bitnami/redis:latest"               # Redis Docker image
 APP_IMAGE="your-app-image:latest"                # ⚠️ Replace with your built app image name
 
+PATH_TO_ENV_FILE="path\to\file\.env"                           # Path to your .env file
 
 # Build Docker image for our application
 echo "📦 Building application Docker image..."
@@ -54,7 +55,7 @@ echo "Starting Goph-Chat container..."
 docker run -d \
   --name $APP_CONTAINER_NAME \
   --network $NETWORK_NAME \
-  -v "$(pwd)/.env:/app/.env" \
+  -v "${PATH_TO_ENV_FILE}:/app/.env" \
   --env-file .env \
   -e MYSQL_GORM_DB_URI="root:${MYSQL_ROOT_PASSWORD}@tcp(${MYSQL_CONTAINER_NAME}:3306)/goph-chat-db?charset=utf8mb4&parseTime=True&loc=Local" \
   -e REDIS_ADDR="${REDIS_CONTAINER_NAME}:6379" \
