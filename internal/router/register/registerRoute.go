@@ -9,6 +9,7 @@ import (
 	roomWebSocketRoutes "github.com/hoangminhphuc/goph-chat/module/room/routes"
 	userstorage "github.com/hoangminhphuc/goph-chat/module/user/repository"
 	userRoutes "github.com/hoangminhphuc/goph-chat/module/user/routes"
+	messageRoutes "github.com/hoangminhphuc/goph-chat/module/message/routes"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -26,8 +27,10 @@ func RegisterAllRoutes(router *gin.RouterGroup, serviceCtx serviceHub.ServiceHub
 	v1 := router.Group("/v1")
 	userRoutes.RegisterUserRoute(v1, serviceCtx)
 
-
 	rooms := v1.Group("/rooms", middlewareAuth)
 	roomWebSocketRoutes.RegisterWebSocketRoute(rooms, serviceCtx)
+
+	messages := v1.Group("/messages", middlewareAuth)
+	messageRoutes.RegisterMessageRoute(messages, serviceCtx)
 }
 
