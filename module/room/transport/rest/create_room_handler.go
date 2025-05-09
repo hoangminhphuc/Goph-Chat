@@ -8,10 +8,11 @@ import (
 	"github.com/hoangminhphuc/goph-chat/common"
 	"github.com/hoangminhphuc/goph-chat/common/models"
 	"github.com/hoangminhphuc/goph-chat/common/utils"
+	ws "github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 	"github.com/hoangminhphuc/goph-chat/module/room/business"
 	"github.com/hoangminhphuc/goph-chat/module/room/dto"
 	"github.com/hoangminhphuc/goph-chat/module/room/repository"
-	ws "github.com/hoangminhphuc/goph-chat/internal/server/websocket"
+	"github.com/hoangminhphuc/goph-chat/plugin/pubsub"
 	"gorm.io/gorm"
 )
 
@@ -19,6 +20,7 @@ func CreateRoom(serviceCtx serviceHub.ServiceHub) func(*gin.Context) {
 	return func(c *gin.Context) {
 		db := serviceCtx.MustGetService(common.PluginDBMain).(*gorm.DB)
 		wsServer := serviceCtx.MustGetRuntimeService(common.PluginWSMain).(*ws.WebSocketServer)
+		pubsub := serviceCtx.MustGetService(common.PluginPubSubMain).(pubsub.LocalPubSub)
 
 		var data dto.RoomCreation
 		if err := c.ShouldBind(&data); err != nil {
@@ -41,7 +43,7 @@ func CreateRoom(serviceCtx serviceHub.ServiceHub) func(*gin.Context) {
 		! THIS SHOULD NOT BE IN HERE, WILL BE IMPROVE LATER
 		! BY INTEGRATING EVENT-DRIVEN ARCHITECTURE (PUB/SUB)
 		*/
-		if err := wsServer.CreateRoom(data.ID); err != nil {
+		if err := wsServer.CreateRoom(data.ID, &pubsub); err != nil {
 			common.ErrorResponse(c, http.StatusBadRequest, err.Error())
 			return
 		}
