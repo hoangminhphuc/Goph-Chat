@@ -3,11 +3,14 @@ package ws
 import (
 	"net/http"
 	"strconv"
+
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/gorilla/websocket"
 	serviceHub "github.com/hoangminhphuc/goph-chat/boot"
 	"github.com/hoangminhphuc/goph-chat/common"
 	"github.com/hoangminhphuc/goph-chat/common/models"
+	"github.com/hoangminhphuc/goph-chat/internal/cache"
 	ws "github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 )
 
@@ -39,8 +42,10 @@ func HandleWebSocketConnection(serviceCtx serviceHub.ServiceHub) func(*gin.Conte
 
 		currentUser := c.MustGet(common.CurrentUser).(*models.Requester)
 
+		rdb := serviceCtx.MustGetService(common.PluginRedisMain).(*redis.Client)
+		messageQueue := cache.NewMessageQueue(rdb)
 		
-		client := ws.NewClient(currentUser.GetUserId(), conn, room)
+		client := ws.NewClient(currentUser.GetUserId(), conn, room, messageQueue)
 		
 		room.Register <- client
 
