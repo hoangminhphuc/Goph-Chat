@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/hoangminhphuc/goph-chat/boot"
 	"github.com/hoangminhphuc/goph-chat/common"
-	"github.com/hoangminhphuc/goph-chat/internal/asyncjob"
+	"github.com/hoangminhphuc/goph-chat/internal/asyncjob/message"
 	"github.com/hoangminhphuc/goph-chat/internal/maintenance"
 	rt "github.com/hoangminhphuc/goph-chat/internal/router"
 	"github.com/hoangminhphuc/goph-chat/internal/router/register"
@@ -39,7 +39,7 @@ func Execute() {
 	register.RegisterAllRoutes(serviceHub.MustGetRuntimeService(common.PluginHTTPMain).(*rt.HTTPServer).GetRouter().Group("/"), serviceHub)
 
 	maintenance.StartCleanupService(serviceHub)
-	asyncjob.RunMessageWorker(serviceHub)
+	message.RunBackgroundWorkers(serviceHub)
 
 	if err := serviceHub.Start(); err != nil {
 		logger.Log.Fatal(err.Error())
