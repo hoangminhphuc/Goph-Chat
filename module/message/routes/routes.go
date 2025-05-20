@@ -6,7 +6,8 @@ import (
 	"github.com/hoangminhphuc/goph-chat/module/message/transport/rest"
 )
 
-func RegisterMessageRoute(v1 *gin.RouterGroup, serviceCtx serviceHub.ServiceHub) {
+func RegisterMessageRoute(message *gin.RouterGroup, serviceCtx serviceHub.ServiceHub) {
 
-	v1.GET("/:id", rest.GetRecentMessages(serviceCtx))
+	message.GET("/:id", rest.GetRecentMessages(serviceCtx))
+	message.PATCH("/:id", rest.EditMessage(serviceCtx))
 }
