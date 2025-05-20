@@ -38,14 +38,14 @@ func (mq *MessageQueue) CacheAndQueue(ctx context.Context, room string, userId s
   recentKey := fmt.Sprintf("messages:room:%s:user:%s:recent", room, userId)
   queueKey  := fmt.Sprintf("queues:room:%s:user:%s", room, userId)
 
+  mq.rdb.Incr(ctx, "next_message_id") // increment message ID
   msgID, err := mq.rdb.Get(ctx, "next_message_id").Result()
   if err != nil {
       return err
   }
-  msgKey := fmt.Sprintf("message:%s", msgID)
 
+  msgKey := fmt.Sprintf("message:%s", msgID)
   pipe := mq.rdb.Pipeline()
-  pipe.Incr(ctx, "next_message_id") // increment message ID
   pipe.LPush(ctx, recentKey, msgID) // push on head of the list
   pipe.LTrim(ctx, recentKey, 0, recentCacheSize-1) // cap at recentCacheSize
   pipe.Expire(ctx, recentKey, recentTTL)
