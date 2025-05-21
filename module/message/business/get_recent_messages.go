@@ -3,11 +3,11 @@ package business
 import (
 	"context"
 
-	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
+	"github.com/hoangminhphuc/goph-chat/module/message/model"
 )
 
 type GetRecentMessagesRepo interface {
-	GetRecentMessages(ctx context.Context, roomID, userID int) ([]websocket.Message, error)
+	GetRecentMessages(ctx context.Context, roomID, userID int) ([]model.Message, error)
 }
 
 type GetRecentMessagesBusiness struct {
@@ -19,6 +19,6 @@ func NewGetRecentMessagesBusiness(repo GetRecentMessagesRepo) *GetRecentMessages
 }
 
 func (b *GetRecentMessagesBusiness) GetRecentMessages(ctx context.Context, 
-	roomID, userID int) ([]websocket.Message, error) {
+	roomID, userID int) ([]model.Message, error) {
 		return b.repo.GetRecentMessages(ctx, roomID, userID)
 }
