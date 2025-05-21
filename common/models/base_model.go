@@ -10,9 +10,9 @@ import (
 
 type BaseModel struct {
 	ID        int        `json:"-" gorm:"column:id;"`
-	FakeID  	string  	`json:"id" gorm:"-"`
-	CreatedAt *time.Time `json:"created_at" gorm:"column:created_at;"`
-	UpdatedAt *time.Time `json:"updated_at" gorm:"column:updated_at;"`
+	FakeID  	string  	`json:"id,omitempty" gorm:"-"`
+	CreatedAt *time.Time `json:"created_at,omitempty" gorm:"column:created_at;"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty" gorm:"column:updated_at;"`
 }
 
 func (bModel *BaseModel) Mask() {

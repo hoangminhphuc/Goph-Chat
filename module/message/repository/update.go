@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 	"github.com/hoangminhphuc/goph-chat/module/message/dto"
+	"github.com/hoangminhphuc/goph-chat/module/message/model"
 )
 
 const lockTTL = 10 * time.Second
@@ -25,17 +25,19 @@ func (s *sqlRepo) UpdateMessageByID(ctx context.Context, msgID int, data *dto.Me
 
 // ! REDIS REPO
 // Update in hash redis
-func (r *redisRepo) UpdateHashMessage(ctx context.Context, msgID int, msgData *dto.MessageUpdate) error {
+func (r *redisRepo) UpdateHashMessage(ctx context.Context, 
+		msgID int, msgData *dto.MessageUpdate) (*model.Message, error) {
+
 	msgKey := fmt.Sprintf("message:%d", msgID)
 	lockKey := "lock:" + msgKey
 	acquired, err := r.rdb.SetNX(ctx, lockKey, 1, lockTTL).Result()
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !acquired { // If this gets called by another process, we should wait
-		return fmt.Errorf("resource is locked, try again later")
+		return nil, fmt.Errorf("resource is locked, try again later")
 	}
 	defer r.rdb.Del(ctx, lockKey) // only safe because we know no one else could've set it
 
@@ -43,22 +45,22 @@ func (r *redisRepo) UpdateHashMessage(ctx context.Context, msgID int, msgData *d
 
 	data, err := r.rdb.HGetAll(ctx, msgKey).Result()
   if err != nil {
-    return err
+    return nil, err
   }
 
-  var msg websocket.Message
+  var msg model.Message
 	if err := json.Unmarshal([]byte(data["payload"]), &msg); err != nil {
-		return fmt.Errorf("json unmarshal error: %w", err)
+		return nil, fmt.Errorf("json unmarshal error: %w", err)
 	}
 
-	msg.Body = msgData.Content
+	msg.Content = msgData.Content
 	updatedPayload, _ := json.Marshal(msg)
 
 	if err := r.rdb.HSet(ctx, msgKey, map[string]interface{}{
 		"payload": []byte(updatedPayload),
 	}).Err();err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return &msg, nil
 }

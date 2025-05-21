@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/hoangminhphuc/goph-chat/internal/server/websocket"
 	"github.com/hoangminhphuc/goph-chat/module/message/model"
 	"github.com/redis/go-redis/v9"
 )
 
 // ! REDIS REPO
 
-func (r *redisRepo) GetRecentMessages(ctx context.Context, roomID, userID int) ([]websocket.Message, error) {
+func (r *redisRepo) GetRecentMessages(ctx context.Context, roomID, userID int) ([]model.Message, error) {
 	key := fmt.Sprintf("messages:room:%d:user:%d:recent", roomID, userID)
 
 	vals, err := r.rdb.LRange(ctx, key, 0, -1).Result() 
@@ -30,17 +29,17 @@ func (r *redisRepo) GetRecentMessages(ctx context.Context, roomID, userID int) (
 		return nil, err
 	}
 
-	var msgs []websocket.Message
+	var msgs []model.Message
 	for i := len(cmds) - 1; i >= 0; i-- { 
 		// Each cmd is a *redis.MapStringStringCmd
 		data := cmds[i].(*redis.MapStringStringCmd).Val()
-		var m websocket.Message
+		var m model.Message
 
 		if err := json.Unmarshal([]byte(data["payload"]), &m); err != nil {
 			return nil, err
 		}
 
-		m.ChatUser, m.RoomID = 0, 0 // Just showing the message content
+		m.UserID, m.RoomID = 0, 0 // Just showing the message content
 		msgs = append(msgs, m)
 	}
 	return msgs, nil
@@ -65,8 +64,8 @@ func (r *redisRepo) GetMessageInRecent(ctx context.Context, roomID, userID, msgI
 
 
 // ! SQL REPO
-func (s *sqlRepo) GetMessageByID(ctx context.Context, msgID int) (*websocket.Message, error) {
-	var msg websocket.Message
+func (s *sqlRepo) GetMessageByID(ctx context.Context, msgID int) (*model.Message, error) {
+	var msg model.Message
 	db := s.db.Table(model.Message{}.TableName())
 	err := db.Where("id = ?", msgID).First(&msg).Error
 	if err != nil {

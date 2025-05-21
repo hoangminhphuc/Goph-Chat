@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/hoangminhphuc/goph-chat/common/logger"
+	"github.com/hoangminhphuc/goph-chat/module/message/model"
 	"github.com/hoangminhphuc/goph-chat/plugin/pubsub"
 )
 
@@ -17,27 +18,38 @@ type Pool struct {
 	// Broadcast 	chan Message
 	done 				chan struct{}
 	pubsub    	*pubsub.LocalPubSub
-	subCh     	<-chan *pubsub.Message
-	unsub     	func()
+	subChans     	[]<-chan *pubsub.Message
+	unsubs     	[]func()
 	logger 			logger.ZapLogger
 	mu 					sync.RWMutex
 }
 
 func NewPool(roomID int, ps *pubsub.LocalPubSub) *Pool {
-	ch, unsub := ps.Subscribe(pubsub.Topic(fmt.Sprintf("room-%d", roomID)))
-	return &Pool{
+	p := &Pool{
 		RoomID: 			roomID,
 		Clients: 			make(map[int]*Client),
 		Register: 		make(chan *Client, 10),
 		Unregister: 	make(chan *Client, 10),
 		done:       make(chan struct{}),
 		pubsub:     ps,
-		subCh:      ch,
-		unsub:      unsub,
 		logger: 			logger.NewZapLogger(),
 	}
+
+	p = RegisterTopics(p, 
+		pubsub.Topic(fmt.Sprintf("room-%d", roomID)), 
+		pubsub.Topic(fmt.Sprintf("room-%d:updated-msg", roomID)))
+
+	return p
 }
 
+func RegisterTopics(p *Pool, topics ...pubsub.Topic) *Pool {
+    for _, topic := range topics {
+        ch, unsub := p.pubsub.Subscribe(topic)
+        p.subChans = append(p.subChans, ch)
+        p.unsubs = append(p.unsubs, unsub)
+    }
+    return p
+}
 func (p *Pool) handleClientRegistration(client *Client) {
 	p.mu.Lock()
 	// defer p.mu.Unlock()
@@ -59,13 +71,15 @@ func (p *Pool) handleClientRegistration(client *Client) {
 	}
 	p.mu.Unlock()
 	
+	msg := model.Message{
+			RoomID:  p.RoomID,       
+			UserID:  client.ID,  
+			Content: "New user joined.", 
+		}
+	msg.Mask()
 	// Avoids WriteJSON to blocks other pool operation
 	for _, peer := range peers {
-		err := peer.Connection.WriteJSON(Message{
-			RoomID:   p.RoomID,
-			ChatUser: client.ID,
-			Body:     "New user joined.",
-		})
+		err := peer.Connection.WriteJSON(msg)
 		if err != nil {
 			p.logger.Log.Error("Cannot write to client: ", peer.ID)
 		}
@@ -85,24 +99,28 @@ func (p *Pool) handleClientUnregistration(client *Client) {
 	}
 	p.mu.Unlock()
 
+	msg := model.Message{
+			RoomID: p.RoomID,
+			UserID: client.ID,
+			Content: "User left.",
+		}
+
+	msg.Mask()
+
 	// Avoids WriteJSON to blocks other pool operation
 	for _, peer := range peers {
-		err := peer.Connection.WriteJSON(Message{
-			RoomID:   p.RoomID,
-			ChatUser: client.ID,
-			Body:     "User left.",
-		})
+		err := peer.Connection.WriteJSON(msg)
 		if err != nil {
 			p.logger.Log.Error("Cannot write to client: ", peer.ID)
 		}
 	}
 }
 
-func (p *Pool) broadcastMessage(msg Message) {
+func (p *Pool) broadcastMessage(msg model.Message) {
 	p.mu.RLock()
 	peers := make([]*Client, 0, len(p.Clients))
 	for _, c := range p.Clients {
-		if c.ID != msg.ChatUser {
+		if c.ID != msg.UserID {
 			peers = append(peers, c)
 		}
 	}
@@ -125,23 +143,46 @@ func (p *Pool) Start() {
 		}
 	}()
 
+	mergedChannel := p.merge()
+
 	for {
 		select {
 		case client := <- p.Register:
 			p.handleClientRegistration(client)
 		case client := <- p.Unregister:
 			p.handleClientUnregistration(client)
-		case msg, ok := <-p.subCh:
+		case msg, ok := <- mergedChannel:
 			if !ok {
 				return
 			}
-			p.broadcastMessage(msg.GetData().(Message))
+			
+			message := msg.GetData().(model.Message)
+			message.Mask()
+
+			p.broadcastMessage(message)
 		case <-p.done:
 			// graceful shutdown
 			return
 		}
 	}
 }
+
+func (p *Pool) merge() <-chan *pubsub.Message {
+    out := make(chan *pubsub.Message)
+
+    // For each subscription, start a goroutine that forwards its messages
+    for _, ch := range p.subChans {
+        ch := ch // capture loop var
+        go func() {
+            for msg := range ch {
+                out <- msg
+            }
+        }()
+    }
+
+    return out
+}
+
 
 func (p *Pool) Stop() {
 	p.mu.RLock()
@@ -152,7 +193,12 @@ func (p *Pool) Stop() {
 	}
 
 	close(p.done)
+	for _, unsub := range p.unsubs {
+        unsub()
+  }
 }
+
+
 
 // func (p *Pool) ReviveWebsocket() {
 // 	if err := recover(); err != nil {
