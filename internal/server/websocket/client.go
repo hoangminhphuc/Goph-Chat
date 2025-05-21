@@ -11,15 +11,15 @@ import (
 	"github.com/hoangminhphuc/goph-chat/common/logger"
 	"github.com/hoangminhphuc/goph-chat/common/models"
 	"github.com/hoangminhphuc/goph-chat/internal/cache"
+	"github.com/hoangminhphuc/goph-chat/module/message/model"
 	"github.com/hoangminhphuc/goph-chat/plugin/pubsub"
 )
 
-
-type Message struct {
-	RoomID 			int	`json:"room_id,omitempty"`
-	ChatUser 		int `json:"user_id,omitempty"`
-	Body   			string `json:"content"`
-}
+// type Message struct {
+// 	RoomID 			int	`json:"room_id,omitempty"`
+// 	ChatUser 		int `json:"user_id,omitempty"`
+// 	Body   			string `json:"content"`
+// }
 
 
 type Client struct {
@@ -51,7 +51,7 @@ func (c *Client) Read(ctx *gin.Context, bodyChan chan []byte) {
 
 
 	for {
-		var msg Message
+		var msg model.Message
 		if err := c.Connection.ReadJSON(&msg); err != nil {
 			if websocket.IsCloseError(err,
 					websocket.CloseNormalClosure,
@@ -67,7 +67,7 @@ func (c *Client) Read(ctx *gin.Context, bodyChan chan []byte) {
 		currentUser :=ctx.MustGet(common.CurrentUser).(*models.Requester)
 
 		msg.RoomID = c.Pool.RoomID
-		msg.ChatUser = currentUser.GetUserId()
+		msg.UserID = currentUser.GetUserId()
 
 		data, err := json.Marshal(msg)
 		if err != nil {
@@ -75,8 +75,10 @@ func (c *Client) Read(ctx *gin.Context, bodyChan chan []byte) {
 				panic(err)
 		}
 
-		if err := c.msgQueue.CacheAndQueue(context.Background(), 
-			fmt.Sprint(msg.RoomID), fmt.Sprint(msg.ChatUser), 
+		var msgWithID *model.Message
+
+		if msgWithID, err = c.msgQueue.CacheAndQueue(context.Background(), 
+			fmt.Sprint(msg.RoomID), fmt.Sprint(msg.UserID), 
 			[]byte(data)); err != nil {
 				c.logger.Log.Error("redis cache/queue error:", err)
 		}
@@ -84,7 +86,7 @@ func (c *Client) Read(ctx *gin.Context, bodyChan chan []byte) {
 		// Sends the message to the Pool
 		c.Pool.pubsub.Publish(pubsub.NewMessage(
 			pubsub.Topic(fmt.Sprintf("room-%d", c.Pool.RoomID)),
-			msg,
+			*msgWithID,
 		))
 	}
 }
