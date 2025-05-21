@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -10,7 +11,9 @@ import (
 	"github.com/hoangminhphuc/goph-chat/common/models"
 	"github.com/hoangminhphuc/goph-chat/module/message/business"
 	"github.com/hoangminhphuc/goph-chat/module/message/dto"
+	"github.com/hoangminhphuc/goph-chat/module/message/model"
 	"github.com/hoangminhphuc/goph-chat/module/message/repository"
+	"github.com/hoangminhphuc/goph-chat/plugin/pubsub"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -49,10 +52,21 @@ func EditMessage(serviceHub serviceHub.ServiceHub) func(*gin.Context) {
 		requester := c.MustGet(common.CurrentUser).(*models.Requester)
 		data.UserID = requester.GetUserId()
 
-		if err := business.UpdateMessageByID(c, id, data); err != nil {
+		var msg *model.Message
+
+		if msg, err = business.UpdateMessageByID(c, id, data); err != nil {
 			common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 			return
 		}
+
+		// Notify other clients about the message update
+		ps := serviceHub.MustGetService(common.PluginPubSubMain).(*pubsub.LocalPubSub)
+		ps.Publish(pubsub.NewMessage(
+			pubsub.Topic(fmt.Sprintf("room-%d:updated-msg", data.RoomID)),
+			*msg,
+		))
+
+		common.SuccessResponse(c, "Update message successfully", nil, nil)
 
 	}
 }
