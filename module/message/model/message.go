@@ -9,8 +9,8 @@ import (
 type Message struct {
 	models.BaseModel
 	Content string `json:"content" gorm:"column:content;"`
-	RoomID  int    `json:"room_id" gorm:"column:room_id;"`
-	UserID 	int    `json:"user_id" gorm:"column:user_id;"`
+	RoomID  int    `json:"room_id,omitempty" gorm:"column:room_id;"`
+	UserID 	int    `json:"user_id,omitempty" gorm:"column:user_id;"`
 	Room 	*roomModel.Room  `json:"-" gorm:"foreignKey:room_id"`
 	User 	*userModel.User `json:"-" gorm:"foreignKey:user_id"`
 }
