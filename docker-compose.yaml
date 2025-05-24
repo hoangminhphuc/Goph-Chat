@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: your-mysql-container
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: your_mysql_password
+    ports:
+      - "3307:3306"
+    networks:
+      - your-network
+    volumes:
+      - ./resources/goph-chat-db-data.sql:/docker-entrypoint-initdb.d/goph-chat-db-data.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: bitnami/redis:latest
+    container_name: your-redis-container
+    restart: unless-stopped
+    environment:
+      ALLOW_EMPTY_PASSWORD: "yes"
+    ports:
+      - "6379:6379"
+    networks:
+      - your-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: your-app-image:latest
+    container_name: your-app-container
+    restart: unless-stopped
+    env_file:
+      - ./path/to/.env
+    environment:
+      MYSQL_GORM_DB_URI: ${MYSQL_GORM_DB_URI}
+      REDIS_ADDR: your-redis-container:6379
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - your-network
+
+networks:
+  your-network:
+    driver: bridge
