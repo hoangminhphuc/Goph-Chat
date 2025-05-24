@@ -48,11 +48,29 @@ Access the API at [http://localhost:8080](http://localhost:8080)
 
 # Running with Docker
 
+## Docker Compose
+
+The easiest way to get this repository up and running is by using the `docker-compose.yaml` script.
+
+> **Note:** Before running, make sure to update any placeholder variables in the file (e.g., container names, network name, ports, credentials) to match your system configuration.
+
+### First-Time Setup (Build & Run)
+
+```bash
+docker-compose -f docker-compose.yaml up --build
+# Add -d to run in detached mode:
+# docker-compose -f docker-compose.yaml up --build -d
+```
+### Start Services (After Initial Setup)
+```bash
+docker-compose -f docker-compose.yaml start
+```
+
 ## Automated Setup with `build-service.sh`
 
 Instead of running each step manually, you can use the included `build-service.sh` script to build your Docker images and start the MySQL, Redis, and application containers with a single command. 
 
-> **Note:** Be sure to open the script and update the placeholder variables (e.g., container names, network name, ports, credentials) to match your system configuration before running it.
+> **Note:** Be sure to open the script and update the placeholder variables just like the `docker-compose.yaml` above
 
 ### Run the automated setup
 
