@@ -23,14 +23,16 @@ func RegisterAllRoutes(router *gin.RouterGroup, serviceCtx serviceHub.ServiceHub
 	authStore := userstorage.NewSQLRepo(db) 
 	secret := serviceCtx.GetEnvValue("JWT_SECRET")
 	middlewareAuth := middleware.RequireAuth(authStore, secret)
+
+	middlewareRBAC := middleware.RBAC()
 	
 	v1 := router.Group("/v1")
 	userRoutes.RegisterUserRoute(v1, serviceCtx)
 
-	rooms := v1.Group("/rooms", middlewareAuth)
+	rooms := v1.Group("/rooms", middlewareAuth, middlewareRBAC)
 	roomWebSocketRoutes.RegisterWebSocketRoute(rooms, serviceCtx)
 
-	messages := v1.Group("/messages", middlewareAuth)
+	messages := v1.Group("/messages", middlewareAuth, middlewareRBAC)
 	messageRoutes.RegisterMessageRoute(messages, serviceCtx)
 }
 
