@@ -64,7 +64,7 @@ func SuccessResponse(c *gin.Context, message string, data ...interface{}) {
 }
 
 func ErrorResponse(c *gin.Context, statusCode int, message string, errs ...APIError) {
-	c.JSON(statusCode, APIResponse{
+	c.AbortWithStatusJSON(statusCode, APIResponse{
 		Code:    statusCode,
 		Status:  "error",
 		Message: message,

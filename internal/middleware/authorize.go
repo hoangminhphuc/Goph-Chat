@@ -1,64 +1,89 @@
 package middleware
 
 import (
-	"context"
-	"log"
+	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hoangminhphuc/goph-chat/common"
 	"github.com/hoangminhphuc/goph-chat/common/models"
-	"github.com/hoangminhphuc/goph-chat/common/utils"
 	"github.com/hoangminhphuc/goph-chat/module/user/model"
 )
 
-type authenStore interface {
-	FindUser(ctx context.Context, conditions map[string]interface{}) (*model.User, error)
+//
+var routePermissions = map[string]map[string][]model.UserRole{
+	// User Route
+    "/v1/register": {
+        "POST": {model.RoleAdmin, model.RoleUser},
+    },
+    "/v1/login": {
+        "POST": {model.RoleAdmin, model.RoleUser},
+    },
+
+	// Room Route
+    "/v1/rooms": {
+        "GET":    {model.RoleAdmin, model.RoleUser},
+        "POST":   {model.RoleAdmin, model.RoleUser},
+    },
+		"/v1/rooms/:id": {
+        "GET":    {model.RoleAdmin, model.RoleUser},
+        "DELETE":   {model.RoleAdmin, model.RoleUser},
+    },
+		"/v1/rooms/ws/:id": {
+        "GET":    {model.RoleAdmin, model.RoleUser},
+    },
+
+	// Message Route
+    "/v1/messages/:id": {
+        "GET":    {model.RoleAdmin, model.RoleUser},
+        "PATCH":    {model.RoleAdmin, model.RoleUser},
+    },
 }
 
-func extractTokenFromHeaderString(s string) (string, error) {
-	parts := strings.Split(s, " ")
-	// "Authorization" : "Bearer {token}"
-
-	if parts[0] != "Bearer" || len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
-		return "", common.NewError("Wrong auth header", http.StatusBadRequest)
-	}
-
-	return parts[1], nil
+func ParseUserRole(s string) (model.UserRole, error) {
+    switch s {
+    case "user":
+        return model.RoleUser, nil
+    case "admin":
+        return model.RoleAdmin, nil
+    default:
+        return -1, fmt.Errorf("invalid role: %s", s)
+    }
 }
 
-func RequireAuth(authenStore authenStore, secret string) func(*gin.Context) {
-	return func(c *gin.Context) {
-		token, err := extractTokenFromHeaderString(c.GetHeader("Authorization"))
 
-		if err != nil {
-			common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
-			return
-		}
+func can(role model.UserRole, path, method string) bool {
+    if methods, ok := routePermissions[path]; ok {
+        if roles, ok2 := methods[method]; ok2 {
+            for _, r := range roles {
+                if r == role {
+                    return true
+                }
+            }
+        }
+    }
+    return false
+}
 
-		payload, err := utils.VerifyToken(token, secret)
+func RBAC() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // userAny, exists := c.Get("currentUser")
+				currentUser := c.MustGet(common.CurrentUser).(*models.Requester)
 
-		if err != nil {
-			common.ErrorResponse(c, http.StatusUnauthorized, err.Error())
-			return
-		}
+        path := c.FullPath()        // "/v1/messages/:id"
+        method := c.Request.Method  
 
-		user, err := authenStore.FindUser(c.Request.Context(), map[string]interface{}{"id": payload.UserId()})
-		
-		if err != nil {
-			common.ErrorResponse(c, http.StatusUnauthorized, err.Error())
-			return
-		}
+				userRole, err := ParseUserRole(currentUser.GetRole())
+				if err != nil {
+					common.ErrorResponse(c, http.StatusBadRequest, err.Error())
+					return
+				}
 
-		currentUser := models.NewRequester(user.ID, user.Email, user.Role.String())
+        if !can(userRole, path, method) {
+            common.ErrorResponse(c, http.StatusForbidden, "permission denied")
+            return
+        }
 
-		// Set throughout this whole request reponse route (each time access an URL)
-		c.Set(common.CurrentUser, currentUser)
-
-		keys := c.Keys
-		log.Println(keys) // Check if common.CurrentUser is present in the keys
-
-		c.Next()
-	}
+        c.Next()
+    }
 }
