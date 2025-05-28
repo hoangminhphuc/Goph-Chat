@@ -8,6 +8,7 @@ import (
 
 func RegisterMessageRoute(message *gin.RouterGroup, serviceCtx serviceHub.ServiceHub) {
 
-	message.GET("/:id", rest.GetRecentMessages(serviceCtx))
+	message.GET("/:id/recent", rest.GetRecentMessages(serviceCtx))
 	message.PATCH("/:id", rest.EditMessage(serviceCtx))
+	message.GET("/:id", rest.ListMessage(serviceCtx))
 }
