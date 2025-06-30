@@ -8,9 +8,9 @@ import (
 
 // AppError is a structured error type that holds additional context.
 type AppError struct {
-	Code    int    `json:"code"`              // e.g., HTTP status code or custom code.
-	Message string `json:"message"`           // User-friendly message.
-	Err     error  `json:"-"`                 // The underlying error, if any.
+	Code    int    `json:"code"`    // e.g., HTTP status code or custom code.
+	Message string `json:"message"` // User-friendly message.
+	Err     error  `json:"-"`       // The underlying error, if any.
 }
 
 // Error returns the string representation of the error.
@@ -72,3 +72,11 @@ func ErrCannotDelete(resource string, err error) *AppError {
 
 // A sentinel error that can be used to indicate no record was found.
 var RecordNotFound = errors.New("record not found")
+
+func (e *AppError) Equal(err error) bool {
+	er, ok := err.(*AppError)
+	if !ok {
+		return false
+	}
+	return e.Code == er.Code && e.Message == er.Message
+}
